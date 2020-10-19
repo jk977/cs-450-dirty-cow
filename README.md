@@ -1,5 +1,5 @@
-# cs-450-dirty-cow
-
 ## Usage
 
-### make
+Build: `make`
+
+Run : `make run`
