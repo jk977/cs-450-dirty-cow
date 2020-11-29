@@ -12,7 +12,7 @@
 
 . "$(dirname "$0")/common.sh"
 
-backup=$HOME/passwd
+backup="$HOME/passwd"
 cp /etc/passwd "$backup"
 echoerr "Backed up /etc/passwd to $backup"
 
