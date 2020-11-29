@@ -15,7 +15,7 @@ dirtycow() {
 
 	if [ ! -x "$exe" ]; then
 		make -C "$appdir" || die "Failed to compile Dirty COW exploit."
-		[ -x "$exe" ]	  || die "Executable not found: $exe"
+		[ -x "$exe" ]     || die "Executable not found: $exe"
 	fi
 
 	"$exe" $@
