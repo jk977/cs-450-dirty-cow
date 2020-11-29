@@ -37,7 +37,7 @@ awk -v FS=':' -v USER="$USER" '
 				} else {
 					# pad comment to line up with old end of comment
 					printf $i;
-                    while (padding--) printf " ";
+					while (padding--) printf " ";
 				}
 
 				printf FS;
