@@ -35,12 +35,9 @@ awk -v FS=':' -v USER="$USER" '
 					padding += length($i) - length(root_uid);
 					printf root_uid;
 				} else {
-					printf $i;
-
 					# pad comment to line up with old end of comment
-					for (n = 0; n < padding; ++n) {
-						printf " ";
-					}
+					printf $i;
+                    while (padding--) printf " ";
 				}
 
 				printf FS;
