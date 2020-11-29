@@ -6,12 +6,22 @@ This project contains an implementation of the [Dirty COW exploit](https://www.c
 
 ## Compilation
 
-From the project root, run
-
-```
-cd app && make
-```
+From the project root, run `make -C app`. This places the executable `dirtycow` in the `app` directory.
 
 ## Usage
 
-TODO: Explain program usage, including scripts
+Assuming the executable is in the current working directory:
+
+```
+./dirtycow [-f FILE | -s STRING | -x HEX] [-o OFFSET | -a] TARGET_FILE
+```
+
+The executable writes a payload to the file `TARGET_FILE`, which must be a pre-existing readable file. The original contents of the file are overwritten with the payload. However, if the payload is shorter than the file's contents, the contents are not truncated.
+
+The payload can be specified in one of three ways: from a file, as a string of characters, or as a string of hexadecimal bytes. These correspond to the command-line flags `-f`, `-s`, and `-x`, respectively. If none of these are chosen, the payload is taken from standard input instead.
+
+The default behavior of the program is to write the payload at the beginning of the target file. This behavior can be overriden with the `-o OFFSET` flag to start writing the payload at the given byte offset, or the `-a` flag to append the payload to the target file. (TODO: Clarify whether `OFFSET` is in decimal, hex, etc.)
+
+## Scripts
+
+TODO: Describe the scripts
