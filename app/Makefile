@@ -1,6 +1,6 @@
 TARGET = dirtycow
 LDLIBS = -pthread
-CFLAGS = -Wall -Wextra -Wpedantic
+CFLAGS = -Wall -Wextra -Wpedantic -std=c99 -D_DEFAULT_SOURCE
 
 .PHONY: all run clean debug debug_compile
 
