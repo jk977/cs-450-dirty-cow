@@ -19,6 +19,12 @@ backup /etc/passwd "$HOME/passwd"
 
 escalate_user() {
 	local user="$1"
+
+	if ! grep "^$user" /etc/passwd >/dev/null 2>&1; then
+		echoerr "User $user not found in /etc/passwd"
+		return 1
+	fi
+
 	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1 | xargs printf "0x%x")"
 
 	awk -v FS=':' -v user="$user" '
