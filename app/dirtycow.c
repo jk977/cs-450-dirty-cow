@@ -130,8 +130,7 @@ void usage(FILE* stream) {
 	                "\t-s, --string\t use command line arg string as payload\n"
 	                "\t-o, --offset\t offset postition for lseek (hex)\n"
 	                "\t-a, --append\t append to target file\n"
-	                "\t-h, --help  \t help print out\n\n"
-	                "Target file name must be the last argument\n");
+	                "\t-h, --help  \t help print out\n\n");
 }
 
 void die(char *fmt, ...) {
@@ -140,6 +139,8 @@ void die(char *fmt, ...) {
 		va_start(ap, fmt);
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
+
+		printf("\n");
 	}
 
 	exit(EXIT_FAILURE);
@@ -159,8 +160,8 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 
 	struct option longopts[] = {
 		{"file",    required_argument, NULL, 'f' },
-		{"append",  no_argument,       NULL, 'a' },
 		{"string",  no_argument,       NULL, 's' },
+		{"append",  no_argument,       NULL, 'a' },
 		{"offset",  required_argument, NULL, 'o' },
 		{"help",    no_argument,       NULL, 'h' },
 		{0}
@@ -168,27 +169,47 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 
 	int c;
 
- 	while ((c = getopt_long(argc, argv, "ahs:f:o:", longopts, NULL)) != -1) {
+ 	while ((c = getopt_long(argc, argv, "f:s:ao:h", longopts, NULL)) != -1) {
 		switch (c) {
 			case 'f':  // file containing payload
+				if (info.payload != NULL) {
+					usage(stderr);
+					die("Only one payload option is allowed.");
+				}
+
 				info.payload = read_file(optarg);
 				break;
-			case 'o':  // offset position for payload (hex)
-				info.offset = parse_hex(optarg);
-				break;
 			case 's':
+				if (info.payload != NULL) {
+					usage(stderr);
+					die("Only one payload option is allowed.");
+				}
+
 				info.payload = malloc(strlen(optarg));
 				strcpy(info.payload, optarg);
 				break;
 			case 'a':  // append to target file
+				if (info.offset != 0x0) {
+					usage(stderr);
+					die("Appending not allowed with offsets.");
+				}
+
 				info.append = true;
+				break;
+			case 'o':  // offset position for payload (hex)
+				if (info.append) {
+					usage(stderr);
+					die("Offsets not allowed when appending.");
+				}
+
+				info.offset = parse_hex(optarg);
 				break;
 			case 'h':
 				usage(stdout);
 				exit(EXIT_SUCCESS);
 			default: // unknown option
 				usage(stderr);
-				die("Unknown option: %c\n", optopt);
+				die("Unknown option: %c", optopt);
 		}
 	}
 
