@@ -36,6 +36,7 @@
 #define VIRTUAL_MEMORY "/proc/self/mem"
 #define THREAD_ITERATIONS 10000
 
+char *progname = NULL;
 int stop = 0;
 
 typedef struct payload_info {
@@ -121,11 +122,15 @@ char *read_file(char *path) {
 }
 
 void usage(FILE* stream) {
-	fprintf(stream, "-f, --file  \t name of file contatining the payload\n"
-	                "-s, --string\t use command line arg string as payload\n"
-	                "-o, --offset\t offset postition for lseek (hex)\n"
-	                "-a, --append\t append to target file\n"
-	                "-h, --help  \t help print out\n\n"
+	fprintf(stream, "Usage:\n");
+	fprintf(stream, "\t%s [-f FILE | -s STRING | -x HEX] [-o OFFSET | -a] TARGET_FILE\n\n", progname);
+
+	fprintf(stream, "Options:\n");
+	fprintf(stream, "\t-f, --file  \t name of file contatining the payload\n"
+	                "\t-s, --string\t use command line arg string as payload\n"
+	                "\t-o, --offset\t offset postition for lseek (hex)\n"
+	                "\t-a, --append\t append to target file\n"
+	                "\t-h, --help  \t help print out\n\n"
 	                "Target file name must be the last argument\n");
 }
 
@@ -180,7 +185,7 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 				break;
 			case 'h':
 				usage(stdout);
-				break;
+				exit(EXIT_SUCCESS);
 			default: // unknown option
 				usage(stderr);
 				die("Unknown option: %c\n", optopt);
@@ -205,6 +210,7 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+	progname = argv[0];
 	PayloadInfo info = parse_opts(argc, argv);
 
 	pthread_t thread_1, thread_2, thread_3;
