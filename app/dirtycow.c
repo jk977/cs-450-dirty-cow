@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -119,13 +120,24 @@ char *read_file(char *path) {
 	return contents;
 }
 
-void print_help(void) {
-	printf("-f, --file   \t name of file contatining the payload\n"
-			"-s, --string\t use command line arg string as payload\n"
-			"-o, --offset\t offset postition for lseek (hex)\n"
-			"-a, --append\t append to target file\n"
-			"-h, --help  \t help print out\n"
-			"\nTarget file name must be the last argument\n");
+void usage(FILE* stream) {
+	fprintf(stream, "-f, --file  \t name of file contatining the payload\n"
+	                "-s, --string\t use command line arg string as payload\n"
+	                "-o, --offset\t offset postition for lseek (hex)\n"
+	                "-a, --append\t append to target file\n"
+	                "-h, --help  \t help print out\n\n"
+	                "Target file name must be the last argument\n");
+}
+
+void die(char *fmt, ...) {
+	if (fmt != NULL) {
+		va_list ap;
+		va_start(ap, fmt);
+		vfprintf(stderr, fmt, ap);
+		va_end(ap);
+	}
+
+	exit(EXIT_FAILURE);
 }
 
 off_t parse_hex(char *str) {
@@ -141,12 +153,12 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 	};
 
 	struct option longopts[] = {
-		{"file",    required_argument, 0, 'f' },
-		{"append",  no_argument,       0, 'a' },
-		{"string",  no_argument,       0, 's' },
-		{"offset",  required_argument, 0, 'o' },
-		{"help",    no_argument,       0, 'h' },
-		{0,         0,                 0,  0  }
+		{"file",    required_argument, NULL, 'f' },
+		{"append",  no_argument,       NULL, 'a' },
+		{"string",  no_argument,       NULL, 's' },
+		{"offset",  required_argument, NULL, 'o' },
+		{"help",    no_argument,       NULL, 'h' },
+		{0}
 	};
 
 	int c;
@@ -167,11 +179,11 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 				info.append = true;
 				break;
 			case 'h':
-				print_help();
+				usage(stdout);
 				break;
 			default: // unknown option
-				printf("unknown option: %c\n", optopt);
-				abort();
+				usage(stderr);
+				die("Unknown option: %c\n", optopt);
 		}
 	}
 
@@ -184,16 +196,16 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 		lseek(info.target_fd, 0, SEEK_SET);
 	}
 
+	struct stat file_info;
+	ERR_IF(fstat(info.target_fd, &file_info) < 0);
+
+	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
+
 	return info;
 }
 
 int main(int argc, char *argv[]) {
 	PayloadInfo info = parse_opts(argc, argv);
-
-	struct stat file_info;
-	ERR_IF(fstat(info.target_fd, &file_info) < 0);
-
-	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
 
 	pthread_t thread_1, thread_2, thread_3;
 
