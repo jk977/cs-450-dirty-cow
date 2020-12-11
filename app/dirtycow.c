@@ -105,7 +105,7 @@ static void *wait_for_write(void *arg) {
 
 static void usage(FILE *stream) {
 	fprintf(stream, "Usage:\n");
-	fprintf(stream, "\t%s [-h] [-f FILE | -s STRING] [-o OFFSET | -a] TARGET_FILE\n\n", progname);
+	fprintf(stream, "\t%s [-h] [-f FILE | -s STRING] [-o OFFSET] TARGET_FILE\n\n", progname);
 
 	fprintf(stream, "Options:\n");
 	fprintf(stream, "\t-f, --file  \t name of file containing payload\n"
