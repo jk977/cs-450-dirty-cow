@@ -226,9 +226,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 					die("Only one payload option is allowed.");
 				}
 
-				info.payload = malloc(strlen(optarg) + 1);
-				strcpy(info.payload, optarg);
-				info.payload[strlen(optarg)] = '\0';
+				info.payload = strdup(optarg);
 				break;
 			case 'o':  // offset position for payload (hex)
 				info.offset = parse_hex(optarg);
