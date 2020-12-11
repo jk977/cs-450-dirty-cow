@@ -44,7 +44,6 @@ typedef struct payload_info {
 	off_t offset;
 	void *loc_in_mem;
 	int target_fd;
-	bool append;
 } PayloadInfo;
 
 // Write payload to mmap'd memory
@@ -89,12 +88,10 @@ static void *wait_for_write(void *arg) {
 		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
 
-		if (memcmp(buf, info->payload, len) == 0 && !info->append) {
+		if (memcmp(buf, info->payload, len) == 0) {
 			printf("Target file is overwritten\n");
 			break;
 		}
-
-		// need to handle append differently
 
 		close(fd);
 		sleep(1);
@@ -113,7 +110,6 @@ static void usage(FILE *stream) {
 	fprintf(stream, "Options:\n");
 	fprintf(stream, "\t-f, --file  \t name of file containing payload\n"
 	                "\t-s, --string\t string to use as payload\n"
-	                "\t-a, --append\t append to target file\n"
 	                "\t-o, --offset\t hex offset in file to write payload\n"
 	                "\t-h, --help  \t print this help message and exit\n\n");
 }
@@ -202,13 +198,11 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 		.offset = 0x0,
 		.loc_in_mem = NULL,
 		.target_fd = -1,
-		.append = false,
 	};
 
 	struct option longopts[] = {
 		{"file",    required_argument, NULL, 'f' },
 		{"string",  no_argument,       NULL, 's' },
-		{"append",  no_argument,       NULL, 'a' },
 		{"offset",  required_argument, NULL, 'o' },
 		{"help",    no_argument,       NULL, 'h' },
 		{0}
@@ -236,20 +230,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 				strcpy(info.payload, optarg);
 				info.payload[strlen(optarg)] = '\0';
 				break;
-			case 'a':  // append to target file
-				if (info.offset != 0x0) {
-					usage(stderr);
-					die("Appending not allowed with offsets.");
-				}
-
-				info.append = true;
-				break;
 			case 'o':  // offset position for payload (hex)
-				if (info.append) {
-					usage(stderr);
-					die("Offsets not allowed when appending.");
-				}
-
 				info.offset = parse_hex(optarg);
 				break;
 			case 'h':
@@ -269,11 +250,6 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 	// Open target file
 	info.target_fd = open(argv[optind], O_RDONLY);
 	ERR_IF(info.target_fd < 0);
-
-	if (info.append) {
-		info.offset = lseek(info.target_fd, 0, SEEK_END);
-		lseek(info.target_fd, 0, SEEK_SET);
-	}
 
 	struct stat file_info;
 	ERR_IF(fstat(info.target_fd, &file_info) < 0);
