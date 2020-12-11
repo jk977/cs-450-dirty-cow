@@ -106,22 +106,6 @@ static void *wait_for_write(void *arg) {
 	return NULL;
 }
 
-// Load Payload into string from specified file
-static char *read_file(char *path) {
-	int fd = open(path, O_RDONLY);
-	ERR_IF(fd < 0);
-
-	struct stat file_info;
-	ERR_IF(fstat(fd, &file_info) < 0);
-
-	off_t file_size = file_info.st_size;
-	char *contents = calloc(file_size + 1, sizeof(char));
-	ERR_IF(read(fd, contents, file_size) != file_size);
-	contents[file_size] = '\0';
-
-	return contents;
-}
-
 static void usage(FILE *stream) {
 	fprintf(stream, "Usage:\n");
 	fprintf(stream, "\t%s [-h] [-f FILE | -s STRING] [-o OFFSET | -a] TARGET_FILE\n\n", progname);
@@ -153,10 +137,72 @@ static off_t parse_hex(char *str) {
 	return (off_t) result;
 }
 
+// Load file contents into heap-allocated string
+static char *read_file(char *path) {
+	int fd = open(path, O_RDONLY);
+	ERR_IF(fd < 0);
+
+	struct stat file_info;
+	ERR_IF(fstat(fd, &file_info) < 0);
+
+	off_t file_size = file_info.st_size;
+	char *contents = malloc(file_size + 1);
+	ERR_IF(read(fd, contents, file_size) != file_size);
+	contents[file_size] = '\0';
+
+	return contents;
+}
+
+// Resize given buffer, or exit on allocation failure
+static void *resize_buffer(void *buf, size_t size) {
+	void *new_buf = realloc(buf, size);
+
+	if (new_buf == NULL) {
+		free(buf);
+		perror(__func__);
+		exit(EXIT_FAILURE);
+	}
+
+	return new_buf;
+}
+
+// Load stdin contents into heap-allocated string
+static char *read_stdin(void) {
+	size_t buf_size = 8;
+	char *buf = malloc(buf_size);
+
+	size_t i = 0;
+	int c;
+
+	while ((c = getchar()) != EOF) {
+		if (i >= buf_size) {
+			// not enough room in buffer; double its size before adding.
+			// see: https://en.wikipedia.org/wiki/Dynamic_array#Geometric_expansion_and_amortized_cost
+			buf_size *= 2;
+			buf = resize_buffer(buf, buf_size);
+		}
+
+		buf[i] = c;
+		++i;
+	}
+
+	if (i >= buf_size) {
+		// make sure buffer has enough room for null byte at end
+		++buf_size;
+		buf = resize_buffer(buf, buf_size);
+	}
+
+	buf[i] = '\0';
+	return buf;
+}
+
 static PayloadInfo parse_opts(int argc, char *argv[]) {
 	PayloadInfo info = {
+		.payload = NULL,
 		.offset = 0x0,
-		.append = false
+		.loc_in_mem = NULL,
+		.target_fd = -1,
+		.append = false,
 	};
 
 	struct option longopts[] = {
@@ -186,8 +232,9 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 					die("Only one payload option is allowed.");
 				}
 
-				info.payload = malloc(strlen(optarg));
+				info.payload = malloc(strlen(optarg) + 1);
 				strcpy(info.payload, optarg);
+				info.payload[strlen(optarg)] = '\0';
 				break;
 			case 'a':  // append to target file
 				if (info.offset != 0x0) {
@@ -212,6 +259,11 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 				usage(stderr);
 				die("Unknown option: %c", optopt);
 		}
+	}
+
+	if (info.payload == NULL) {
+		// no payload options were given; assume stdin
+		info.payload = read_stdin();
 	}
 
 	// Open target file
