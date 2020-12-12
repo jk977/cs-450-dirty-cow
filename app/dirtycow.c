@@ -32,8 +32,8 @@
 #define ERR_IF_PTHREAD(status) \
 	do {                       \
 		int _val = status;     \
-        errno = _val;          \
-        ERR_IF(_val > 0);      \
+		errno = _val;          \
+		ERR_IF(_val > 0);      \
 	} while (0)
 
 #define VIRTUAL_MEMORY    "/proc/self/mem"
