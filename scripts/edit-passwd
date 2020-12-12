@@ -25,7 +25,7 @@ escalate_user() {
 		return 1
 	fi
 
-	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1 | xargs printf "0x%x")"
+	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1)"
 
 	awk -v FS=':' -v user="$user" '
 			BEGIN {

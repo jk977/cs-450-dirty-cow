@@ -18,9 +18,9 @@ Assuming the executable is in the current working directory:
 
 The executable writes a payload to the file `TARGET_FILE`, which must be a pre-existing readable file. The original contents of the file are overwritten with the payload. However, if the payload is shorter than the file's contents, the contents are not truncated.
 
-The payload can be specified in one of three ways: from a file, as a string of characters, or as a string of hexadecimal bytes. These correspond to the command-line flags `-f`, `-s`, and `-x`, respectively. If none of these are chosen, the payload is taken from standard input instead.
+The payload can be specified in one of two ways: from a file or as a string of characters. These correspond to the command-line flags `-f` and `-s`, respectively. If neither of these are chosen, the payload is taken from standard input instead.
 
-The default behavior of the program is to write the payload at the beginning of the target file. This behavior can be overriden with the `-o OFFSET` flag to start writing the payload at the given hexadecimal byte offset.
+The default behavior of the program is to write the payload at the beginning of the target file. This behavior can be overriden with the `-o OFFSET` flag to start writing the payload at the given byte offset. `OFFSET` can be decimal, octal, or hexadecimal.
 
 ## Scripts
 

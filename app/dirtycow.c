@@ -131,9 +131,15 @@ static void die(char *fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-static off_t parse_hex(char *str) {
-	unsigned int result;
-	sscanf(str, "%x", &result);
+// Parse an offset from the given string, or exit if invalid.
+static off_t parse_offset(char *str) {
+	char *end;
+	unsigned long result = strtoul(str, &end, 0);
+
+	if (*str == '\0' || *end != '\0') {
+		die("Invalid offset: \"%s\"", str);
+	}
+
 	return (off_t) result;
 }
 
@@ -230,7 +236,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 				info.payload = strdup(optarg);
 				break;
 			case 'o':  // offset position for payload (hex)
-				info.offset = parse_hex(optarg);
+				info.offset = parse_offset(optarg);
 				break;
 			case 'h':
 				usage(stdout);
