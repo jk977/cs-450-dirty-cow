@@ -13,7 +13,7 @@ From the project root, run `make -C app`. This places the executable `dirtycow` 
 Assuming the executable is in the current working directory:
 
 ```
-./dirtycow [-f FILE | -s STRING | -x HEX] [-o OFFSET] TARGET_FILE
+./dirtycow [-h] [-f FILE | -s STRING] [-o OFFSET] TARGET_FILE
 ```
 
 The executable writes a payload to the file `TARGET_FILE`, which must be a pre-existing readable file. The original contents of the file are overwritten with the payload. However, if the payload is shorter than the file's contents, the contents are not truncated.
@@ -31,6 +31,6 @@ There are two scripts that demonstrate usages of our exploit implementation:
 
 Both scripts back up their respective `/etc` files to the user's home directory. This allows the scripts to be undone by overwriting the edited file with the back up.
 
-The first script allows anyone with valid credentials on the vulnerable machine to escalate their privileges. It puts the system into an unstable state, however. Programs that check the user's UID or GUID such as `sudo` are unable to find the user, since their old UID is gone. As such, when the logged in user is edited, the script is best used to gain temporary root access (e.g., by logging into a different TTY), obtain permanent root access from there, and restore the user's UID and GUID.
+The first script allows anyone with valid credentials on the vulnerable machine to escalate their privileges. It puts the system into an unstable state, however. Programs that check the user's UID or GUID, such as `sudo`, are unable to find the user, since their old UID is gone. As such, the script is best used to gain temporary root access (e.g., by logging into a different TTY), obtain permanent root access from there, and restore the edited user's UID and GUID.
 
 In the second script, the shell has root access, showing the possibility of an attacker providing an arbitrary server with a root shell on the vulnerable machine. Unlike the first script, this script grants immediate root access.
