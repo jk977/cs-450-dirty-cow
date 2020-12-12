@@ -143,22 +143,17 @@ static char *read_file(char *path) {
 
 	off_t file_size = file_info.st_size;
 	char *contents = malloc(file_size + 1);
+	ERR_IF(contents == NULL);
+
 	ERR_IF(read(fd, contents, file_size) != file_size);
 	contents[file_size] = '\0';
-
 	return contents;
 }
 
 // Resize given buffer, or exit on allocation failure
 static void *resize_buffer(void *buf, size_t size) {
 	void *new_buf = realloc(buf, size);
-
-	if (new_buf == NULL) {
-		free(buf);
-		perror(__func__);
-		exit(EXIT_FAILURE);
-	}
-
+	ERR_IF(new_buf == NULL);
 	return new_buf;
 }
 
@@ -166,6 +161,7 @@ static void *resize_buffer(void *buf, size_t size) {
 static char *read_stdin(void) {
 	size_t buf_size = 8;
 	char *buf = malloc(buf_size);
+	ERR_IF(buf == NULL);
 
 	size_t i = 0;
 	int c;
