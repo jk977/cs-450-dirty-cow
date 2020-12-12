@@ -16,6 +16,8 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+// Instead of getting bogged down in boilerplate return value checks, handle
+// them with a macro that does what we want when an error occurs.
 #define ERR_IF(cond)            \
 	do {                        \
 		if (cond) {             \
@@ -24,16 +26,17 @@
 		}                       \
 	} while (0)
 
-#define ERR_IF_PTHREAD(status)                                     \
-	do {                                                           \
-		int _val = status;                                         \
-		if (_val > 0) {	                                           \
-			fprintf(stderr, "%s: %s\n", __func__, strerror(_val)); \
-			exit(EXIT_FAILURE);                                    \
-		}                                                          \
+// pthread functions signal errors differently than standard library functions.
+// Instead of setting errno, they return the error value, so they need a custom
+// error macro.
+#define ERR_IF_PTHREAD(status) \
+	do {                       \
+		int _val = status;     \
+        errno = _val;          \
+        ERR_IF(_val > 0);      \
 	} while (0)
 
-#define VIRTUAL_MEMORY "/proc/self/mem"
+#define VIRTUAL_MEMORY    "/proc/self/mem"
 #define THREAD_ITERATIONS 10000
 
 char *progname = NULL;
@@ -114,6 +117,7 @@ static void usage(FILE *stream) {
 	                "\t-h, --help  \t print this help message and exit\n\n");
 }
 
+// Print a formatted message (if not null), then exit with a failing status.
 static void die(char *fmt, ...) {
 	if (fmt != NULL) {
 		va_list ap;
@@ -133,7 +137,7 @@ static off_t parse_hex(char *str) {
 	return (off_t) result;
 }
 
-// Load file contents into heap-allocated string
+// Load file contents into a heap-allocated string.
 static char *read_file(char *path) {
 	int fd = open(path, O_RDONLY);
 	ERR_IF(fd < 0);
@@ -150,14 +154,14 @@ static char *read_file(char *path) {
 	return contents;
 }
 
-// Resize given buffer, or exit on allocation failure
+// Resize the given buffer, or exit on allocation failure.
 static void *resize_buffer(void *buf, size_t size) {
 	void *new_buf = realloc(buf, size);
 	ERR_IF(new_buf == NULL);
 	return new_buf;
 }
 
-// Load stdin contents into heap-allocated string
+// Load stdin contents into a heap-allocated string.
 static char *read_stdin(void) {
 	size_t buf_size = 8;
 	char *buf = malloc(buf_size);
@@ -188,6 +192,7 @@ static char *read_stdin(void) {
 	return buf;
 }
 
+// Parse the command line options to initialize the exploit payload.
 static PayloadInfo parse_opts(int argc, char *argv[]) {
 	PayloadInfo info = {
 		.payload = NULL,
@@ -241,7 +246,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 		info.payload = read_stdin();
 	}
 
-	// Open target file
+	// open target file
 	info.target_fd = open(argv[optind], O_RDONLY);
 	ERR_IF(info.target_fd < 0);
 
