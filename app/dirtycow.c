@@ -217,7 +217,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 
 	int c;
 
- 	while ((c = getopt_long(argc, argv, "f:s:ao:h", longopts, NULL)) != -1) {
+ 	while ((c = getopt_long(argc, argv, "f:s:o:h", longopts, NULL)) != -1) {
 		switch (c) {
 			case 'f':  // file containing payload
 				if (info.payload != NULL) {
