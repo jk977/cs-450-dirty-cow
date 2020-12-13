@@ -253,20 +253,23 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 		die("Unexpected number of positional arguments.");
 	}
 
+	// make sure target path is readable
+	char *target_path = argv[optind];
+	ERR_IF(access(target_path, R_OK) < 0);
+
 	if (info.payload == NULL) {
 		// no payload options were given; assume stdin
 		info.payload = read_stdin();
 	}
 
 	// open target file
-	info.target_fd = open(argv[optind], O_RDONLY);
+	info.target_fd = open(target_path, O_RDONLY);
 	ERR_IF(info.target_fd < 0);
 
 	struct stat file_info;
 	ERR_IF(fstat(info.target_fd, &file_info) < 0);
 
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
-
 	return info;
 }
 
