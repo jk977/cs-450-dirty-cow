@@ -243,8 +243,14 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 				exit(EXIT_SUCCESS);
 			default: // unknown option
 				usage(stderr);
-				die("Unknown option: %c", optopt);
+				die("Unknown option: %c", c);
 		}
+	}
+
+	if (optind != argc - 1) {
+		// user didn't give exactly one positional argument
+		usage(stderr);
+		die("Unexpected number of positional arguments.");
 	}
 
 	if (info.payload == NULL) {
