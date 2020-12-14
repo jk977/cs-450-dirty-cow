@@ -28,5 +28,5 @@ dirtycow() {
 		[ -x "$exe" ]     || die "Executable not found: $exe"
 	fi
 
-	"$exe" $@
+	"$exe" "$@"
 }
