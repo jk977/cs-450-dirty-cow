@@ -275,6 +275,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 	ERR_IF(fstat(info.target_fd, &file_info) < 0);
 
 	info.loc_in_mem = mmap(NULL, file_info.st_size, PROT_READ, MAP_PRIVATE, info.target_fd, 0);
+	ERR_IF(info.loc_in_mem == MAP_FAILED);
 	return info;
 }
 
@@ -292,6 +293,11 @@ int main(int argc, char *argv[]) {
 	ERR_IF_PTHREAD(pthread_join(thread_2, NULL));
 	ERR_IF_PTHREAD(pthread_join(thread_3, NULL));
 
+	struct stat file_info;
+	ERR_IF(fstat(info.target_fd, &file_info) < 0);
+
+	// unmap the mapped memory created using mmap()
+	ERR_IF(munmap(info.loc_in_mem, file_info.st_size) < 0); 
 	close(info.target_fd);
 	free(info.payload);
 
