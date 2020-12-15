@@ -3,15 +3,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <string.h>
-
 #include <getopt.h>
 #include <unistd.h>
-
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -90,14 +87,18 @@ static void *wait_for_write(void *arg) {
 
 		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
-
+		
+		// close fd before breaking or relooping
+		close(fd);
+		
 		if (memcmp(buf, info->payload, len) == 0) {
 			printf("Target file is overwritten\n");
 			break;
 		}
 
-		close(fd);
-		sleep(1);
+		// Push this thread to back of run queue allowing "madvisor_thread" and "writer_thread"
+		// priority to run, this way after each examination, something new is guaranteed to possibly happen 
+		ERR_IF_PTHREAD(pthread_yield(NULL));
 	}
 
 	stop = 1;
@@ -209,7 +210,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 
 	struct option longopts[] = {
 		{"file",    required_argument, NULL, 'f' },
-		{"string",  no_argument,       NULL, 's' },
+		{"string",  required_argument, NULL, 's' },
 		{"offset",  required_argument, NULL, 'o' },
 		{"help",    no_argument,       NULL, 'h' },
 		{0}
