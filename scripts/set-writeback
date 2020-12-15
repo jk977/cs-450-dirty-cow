@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Sets the tunable dirty_writeback_centisecs to 0 to disable the writing of
+# dirty data to the disk. This makes the exploit stable. If not used, the kernel
+# crashes shortly after performing the exploit.
+
+. "$(dirname "$0")/common.sh"
+
+if [[ $EUID -ne 0 ]]; then
+	die "Must be root to set dirty writeback."
+fi
+
+echo 0 >/proc/sys/vm/dirty_writeback_centisecs
