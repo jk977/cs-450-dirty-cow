@@ -99,7 +99,7 @@ static void *wait_for_write(void *arg) {
 
 		// Push this thread to back of run queue allowing "madvisor_thread" and "writer_thread"
 		// priority to run, this way after each examination, something new is guaranteed to possibly happen 
-		ERR_IF_PTHREAD(pthread_yield(NULL));
+		ERR_IF_PTHREAD(pthread_yield());
 	}
 
 	stop_thread = true;
