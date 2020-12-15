@@ -13,8 +13,11 @@
 ## Vulnerability
 
 * Exploit is caused by a [race condition in handling copy-on-write][3]
-    * Any time there is an attempt made to write to a file, the request has to go through the kernel which is where this exploit lies.
-    * Kernel behavior when writing to file
+    * Any time there is an attempt made to write to a file, the request has to go through the kernel which is where this exploit lies. 
+    
+    Kernel behavior when writing to file
+    
+    <ul>
     1. Ask kernel to create private mapping of a read-only file on the virtual memory
         * Since the mapping is private, we can write to it but the changes will be rejected when an attempt is made to copy to them physical memory.
     2. The kernel then has to find a spot in physical memory to store the private mapping. (Due to COW, this isn't done until we start writing.)
@@ -29,6 +32,7 @@
     6. Once the kernel creates the private mapping in physical memory to write our changes to, we call **madvise()** with a *MAVD_DONTNEED* flag (in a separate thread)
         * This tells the kernel that we don't need the private mapping anymore
     7. The kernel forgets about the private mapping but it still has something it needs to write, thus it writes the changes to the original file that the private mapping was create for.
+</ul>
 
 * Our exploit steps:
     1. Open a read-only file
