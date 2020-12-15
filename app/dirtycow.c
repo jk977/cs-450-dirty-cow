@@ -103,7 +103,7 @@ static void *wait_for_write(void *arg) {
 	}
 
 	stop_thread = true;
-	puts("Stopping threads"); 
+	puts("Stopping threads");
 
 	return NULL;
 }
