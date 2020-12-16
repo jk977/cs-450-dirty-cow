@@ -45,7 +45,7 @@ typedef struct payload_info {
 	char *payload;
 	off_t offset;
 	void *loc_in_mem;
-    char *target_path;
+	char *target_path;
 	int target_fd;
 } PayloadInfo;
 

@@ -29,8 +29,8 @@ escalate_user() {
 	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1)"
 
 	# awk script outputs ${user}'s line in /etc/passwd, but modified to have a
-    # UID/GID of 0 (effectively aliasing the account to the root user) and a
-    # default shell of /bin/sh (to work around any potential nologin issues)
+	# UID/GID of 0 (effectively aliasing the account to the root user) and a
+	# default shell of /bin/sh (to work around any potential nologin issues)
 	awk -v FS=':' -v user="$user" '
 			BEGIN {
 				# important constants for script
