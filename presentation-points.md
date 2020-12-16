@@ -3,12 +3,12 @@
 ## Background
 
 * Copy-On-Write (COW)
+    * Copy-On-Write (COW) is a technique used to efficiently copy data resources in a computer system. 
+    * The idea is, as long as multiple programs need read-only access to some data the kernel will provide them with pointers
+    * This means that data in physical memory isn't copied. If any program needs to make modifications, then the kernel creates a private copy for whichever program needs to make modification.
+    * These changes are then written back to the original file.
     * When a program requests a copy of a resource, the kernel doesn't actually copy the resource, the original and the copy both refer to the same resource
-    * The kernel will wait to make a copy until a program writes to the resource
-* When writing to a file, kernel [doesn't immediately write][1] changes to disk
-    * Page cache is kept in RAM to speed things up
-    * Pages with changes are marked dirty, scheduled to write to disk
-* Disk is updated via [dedicated kernel threads][2]
+    * Copy-on-Write is common in lots of applications, something everyone is familiar with is fork(). The data shared between the processes are handled by copy-on-write to avoid making copies of all data between the parent and child.
 
 [1]: http://sylab-srv.cs.fiu.edu/lib/exe/fetch.php?media=paperclub:lkd3ch16.pdf
 [2]: https://www.cs.cmu.edu/~mukesh/hacks/spindown/t1.html
