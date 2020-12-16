@@ -27,10 +27,10 @@ The default behavior of the program is to write the payload at the beginning of 
 There are two scripts that demonstrate usages of our exploit implementation:
 
 1. `scripts/edit-passwd` can edit an arbitrary user in `/etc/passwd`, replacing their UID and GUID with root's UID and GUID, respectively. It also changes the user's shell to `/bin/sh` to avoid issues with users that cannot log in or have an unusual shell.
-2. `scripts/edit-crontab` edits `/etc/crontab` to attempt a reverse shell via a TCP connection to `localhost` on port 8080.
+2. `scripts/edit-bashrc` edits `/etc/bash.bashrc` to attempt a reverse shell via a TCP connection to a given server and port whenever an interactive bash session is started.
 
 Both scripts back up their respective `/etc` files to the user's home directory. This allows the scripts to be undone by overwriting the edited file with the back up.
 
 The first script allows anyone with valid credentials on the vulnerable machine to escalate their privileges. It puts the system into an unstable state, however. Programs that check the user's UID or GUID, such as `sudo`, are unable to find the user, since their old UID is gone. As such, the script is best used to gain temporary root access (e.g., by logging into a different TTY), obtain permanent root access from there, and restore the edited user's UID and GUID.
 
-In the second script, the shell has root access, showing the possibility of an attacker providing an arbitrary server with a root shell on the vulnerable machine. Unlike the first script, this script grants immediate root access.
+In the second script, the shell gives a remote server a shell session. This session is logged into the user that spawned the bash process, and works for any user on the machine. Thus, if anyone runs `sudo bash` or similar, the server will have root access. Unlike the first exploit, this is not guaranteed to give root access to the attacker. However, once the payload is installed in `/etc/bash.bashrc`, the attacker can gain remote access to the machine, which may allow further exploitation if a root shell is not obtained.
