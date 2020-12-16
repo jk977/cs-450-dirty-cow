@@ -101,7 +101,7 @@ static void *wait_for_write(void *arg) {
 		}
 
 		// Push this thread to back of run queue allowing "madvisor_thread" and "writer_thread"
-		// priority to run, this way after each examination, something new is guaranteed to possibly happen 
+		// priority to run, this way after each examination, something new is guaranteed to possibly happen
 		ERR_IF_PTHREAD(pthread_yield());
 	}
 
@@ -219,7 +219,7 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 
 	int c;
 
- 	while ((c = getopt_long(argc, argv, "f:s:o:h", longopts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "f:s:o:h", longopts, NULL)) != -1) {
 		switch (c) {
 			case 'f':  // file containing payload
 				if (info.payload != NULL) {
@@ -259,8 +259,8 @@ static PayloadInfo parse_opts(int argc, char *argv[]) {
 	char *target_path = argv[optind];
 	ERR_IF(access(target_path, R_OK) < 0);
 
-    info.target_path = strdup(target_path);
-    ERR_IF(info.target_path == NULL);
+	info.target_path = strdup(target_path);
+	ERR_IF(info.target_path == NULL);
 
 	if (info.payload == NULL) {
 		// no payload options were given; assume stdin
