@@ -7,14 +7,16 @@
 # The script takes either 0 or 2 parameters. If parameters are given, they are
 # as follows:
 #
-#	$1: The server to connect to for the reverse shell
-#	$2: The port to connect to
+#	$1: The server to connect to for the reverse shell (default: localhost)
+#	$2: The port to connect to (default: 8080)
 #
-# Once the exploit completes, open a TCP server on localhost:8080. For example:
+# Once the exploit completes, listen on the given server and port for incoming
+# TCP connections. For example:
 #
 #	nc -lp 8080 localhost
 #
-# This server should receive a root shell connection once bash is ran.
+# The server will then receive a shell connection for the next user that starts
+# an interactive bash session.
 
 . "$(dirname "$0")/common.sh"
 
